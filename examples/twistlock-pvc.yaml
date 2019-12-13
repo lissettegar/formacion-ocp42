@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: twistlock-console
+  namespace: twistlock
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: ""
+  dataSource: null
+  volumeMode: Filesystem
+  volumeName: twistlock-console

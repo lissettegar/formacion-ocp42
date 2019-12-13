@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: twistlock-console
+spec:
+  accessModes:
+  - ReadWriteOnce
+  capacity:
+    storage: 50Gi
+  nfs:
+    path: /home/twistlock-storage
+    server: 10.20.90.1
+  persistentVolumeReclaimPolicy: Retain
+  volumeMode: Filesystem
