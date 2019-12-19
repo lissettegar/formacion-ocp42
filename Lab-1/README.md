@@ -171,3 +171,7 @@ Obtener el comando de logging desde la consola de OCP -> Copy Logging Command ->
 ![alt Route][imagen3]
 
 [imagen3]: images/routes3.png
+
+### 11. Limpiar el entorno
+
+    $oc delete project $GUID-formacion

@@ -40,7 +40,7 @@
 
 [imagen8]: images/create-app8.png
 
-## Desplegar una aplicación en OpenShift desde el catalogo
+## Desplegar una aplicación en OpenShift desde la consola usando el catalogo
 
 1. En la opcion *+Add*, seleccionar la opcion *From Catalog* para ver el formulario *Developer Catalog* y filtrar por *Jenkins*.
 
@@ -62,10 +62,12 @@
 
 [imagen7]: images/create-app7.png
 
-5. Comprobar en la opcion *Build* que se ha creado un BuildConfig para la aplicacion y que seleccionando el *Buildconfig* podemos ver los Buids desplegados (en este caso solo estara uno)
-
-6. Desde la vista Topología, acceder a la aplicacion
+5. Desde la vista Topología, acceder a la aplicacion
 
 ![alt Crar App][imagen9]
 
 [imagen9]: images/create-app9.png
+
+6. Limpiar el entorno
+
+        $oc delete project $GUID-formacion
