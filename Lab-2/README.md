@@ -8,10 +8,10 @@
 
 [imagen1]: images/create-app1.png
 
-2. En la seccion **Git** escribir la URL del repositorio Git donde esta el codigo fuente a partir del cual se desea crear una aplicación. Por ejemplo, la URL de esta aplicación de ejemplo nodejs es:
+2. En la seccion **Git** escribir la URL del repositorio Git donde esta el codigo fuente a partir del cual se desea crear una aplicación. En este ejemplo usaremos la URL de una aplicación nodejs:
 https://github.com/sclorg/nodejs-ex.
 
-3. En la sección **Builder**, seleccionar el Builder Image que se va a usar, en este caso **Node.js**, para ver los detalles. Si es necesario, se puede cambiar la versión utilizando la lista desplegable.
+3. En la sección **Builder**, seleccionar el Builder Image que se va a usar, en este caso **Node.js**, para ver los detalles. En este caso usaremos la version **latest**.
 
 4. En la sección **General** elegir un nombre para la aplicacion. Se puede usar el que viene por defecto.
 
