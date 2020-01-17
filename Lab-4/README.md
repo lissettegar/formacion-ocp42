@@ -1,4 +1,4 @@
-# Instrucciones Laboratorio 3
+# Instrucciones Laboratorio 4
 
 ## CI/CD simple con Openshift
 
@@ -66,10 +66,14 @@
 
 ## 3. Crear un pipeline simple
 
-  3.1. Logarse en el jenkins.
-  3.2. En la izquierda seleccionar opcion **Nueva Tarea**.
-  3.3. Poner un nombre al Pipeline, por ejemplo Task, seleccionar **Pipeline** en el tipo de Job y click en **OK**.
-  3.4. Al final de la siguiente pantalla hay un espacio en el que copiar el pipeline:
+
+   3.1. Logarse en el jenkins.
+
+   3.2. En la izquierda seleccionar opcion **Nueva Tarea**.
+
+   3.3. Poner un nombre al Pipeline, por ejemplo Task, seleccionar **Pipeline** en el tipo de Job y click en **OK**.
+
+   3.4. En la siguiente pantalla, seccion script, copiar el pipeline del ejemplo:
 
     node {
       stage('Build Tasks') {
