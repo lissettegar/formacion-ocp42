@@ -1,0 +1,34 @@
+kind: BuildConfig
+apiVersion: build.openshift.io/v1
+metadata:
+  name: openShift-tasks
+  namespace: lgp-jenkins
+  labels:
+    build: openshift-tasks
+spec:
+  nodeSelector: {}
+  output: {}
+  resources: {}
+  successfulBuildsHistoryLimit: 5
+  failedBuildsHistoryLimit: 5
+  strategy:
+    type: JenkinsPipeline
+    jenkinsPipelineStrategy:
+      jenkinsfilePath: Jenkinsfile
+      env:
+        - name: CLUSTER
+          value: api.ocpdevmad01.tic1.intranet
+        - name: GUID
+          value: lgp
+        - name: REPO
+          value: 'https://github.com/lissettegar/openshift-tasks.git'
+  postCommit: {}
+  source:
+    type: Git
+    git:
+      uri: 'https://github.com/lissettegar/openshift-tasks.git'
+      ref: master
+  triggers:
+    - type: GitHub
+    - type: Generic
+    - type: ConfigChange

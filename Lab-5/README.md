@@ -343,27 +343,33 @@
 
 ## 7. Preparar el Jenkinsfile y copiarlo en el Repo de Git de la aplicacion
 
-7.1. Crear el directorio
+7.1. Crear el directorio tasks en el repo de la aplicacion.
+
+    $ cd <directorio de trabajo>/opeshift-tasks
+    $ mkdir tasks
+
 7.1. En el repo de la formacion esta el Jenkinsfile que se usa en este lab, path **<directorio de trabajo>/formacion-ocp-4.2/Lab-5**. Copiar el fichero **Jenkinsfile** al repo de la aplicacion que creamos en el paso 3 (ejemplo):
 
-$ cp <directorio de trabajo>/formacion-ocp-4.2/Lab-5/
+    $ cp <directorio de trabajo>/formacion-ocp-4.2/Lab-5/
+    $ cp Jenkinsfile <directorio de trabajo>/opeshift-tasks/tasks
 
+7.2. Subir los cambios al repo:
 
+    $ git add .;git commit -m "v`date '+%y%m%d'`";git push <mirepo> master
 
+## 8. Crear un Build Config que apunte al pipeline en el repositorio de codigo
 
-Crear un Build Config que apunte al pipeline en el repositorio de codigo, definiendo como `contextDir openshift-tasks`, y las siguientes variables:
+8.1. Modificar el fichero **buidconfig-task.yaml** cambiando el namespace por el nombre del namespace de Jenkins de cada uno, cambiar el GUID y el nombre del repo de Git que se este usando:
 
-GUID: el valor de la variable que se este usando para definir los proyectos.
-
-REPO: La URL al repositorio de codigo donde esta el Jenkinsfile
-
-CLUSTER: La base de la URL del cluster
+* GUID: el valor de la variable que se este usando para definir los proyectos.
+* REPO: La URL al repositorio de codigo donde esta el Jenkinsfile
+* CLUSTER: La base de la URL del cluster (ya esta configurada para el entorno de desarrollo)
 
 
     kind: BuildConfig
     apiVersion: build.openshift.io/v1
     metadata:
-      name: openShift-tasks
+      name: openshift-tasks
       namespace: lgp-jenkins
       labels:
         build: openshift-tasks
@@ -390,8 +396,105 @@ CLUSTER: La base de la URL del cluster
         git:
           uri: 'https://github.com/lissettegar/openshift-tasks.git'
           ref: master
-        contextDir: openshift-tasks
-      triggers:
-        - type: GitHub
-        - type: Generic
-        - type: ConfigChange
+
+
+8.2. Crear el buidconfig:
+
+    $ oc create -f buidconfig-task.yaml
+
+8.3. Comprobar en la consola de OpenShift que se ha creado el **BuildConfig** de tipo **Pipeline**:
+
+![alt BuildConfig][imagen1]
+
+[imagen1]: images/buildconfig.png
+
+8.4. Acceder a Jenkins y comprobar que se ha creado el **pipeline**:
+
+![alt Pipeline][imagen2]
+
+[imagen2]: images/jenkins.png
+
+8.5. Desde la consola de OpenShift hacer un Start Build:
+
+![alt Startbuild][imagen3]
+
+[imagen3]: images/startbuild.png
+
+8.6. El progreso del pipeline se puede seguir desde varios sitios:
+
+* Desde la consola de OpenShift Build -> Build details:
+
+![alt Builddetail][imagen4]
+
+[imagen4]: images/builddetail.png
+
+* Desde el Jenkins:
+
+![alt Jenkins-stages][imagen5]
+
+[imagen5]: images/jenkins-stages.png
+
+* Desde Open Blue Ocean:
+
+![alt Blue-Ocean][imagen6]
+
+[imagen6]: images/blue-ocean.png
+
+* Desde la consola del pipeline en Jenkins (opcion **Console Output**):
+
+![alt jenkins-console][imagen7]
+
+[imagen7]: images/jenkins-console.png
+
+
+8.7. Iran ejecutandose todos los stages hasta llegar al punto en que se quede esperando por la accion de alguien que promueba el cambio a produccion (ejemplo):
+
+![alt promote][imagen8]
+
+[imagen8]: images/promote.png
+
+8.8. Antes de promover el cambio a produccion comprobar que la aplicacion tasks esta corriendo en el proyecto de desarrollo. Comprobarlo por linea de comando y en el GUI. En este ejemplo es el pod **tasks-1-kf9mc**:
+
+    $ oc get pods -n $GUID-tasks-dev
+    NAME             READY   STATUS      RESTARTS   AGE
+    tasks-1-build    0/1     Completed   0          23m
+    tasks-1-deploy   0/1     Completed   0          22m
+    tasks-1-kf9mc    1/1     Running     0          22m
+
+8.9. Comprobar que se tiene acceso a la aplicacion de del proyecto de desarrollo, en este ejemplo el route es http://tasks-lgp-tasks-dev.apps.ocpdevmad01.tic1.intranet/:
+
+![alt Route1][imagen13]
+
+[imagen13]: images/route1.png
+
+8.10. Promover el cambio y comprobar que el pipeline termina correctamente:
+
+* Desde la consola de OpenShift Build -> Build details:
+
+![alt Buid-Finish][imagen9]
+
+[imagen9]: images/finish1.png
+
+* Desde el Jenkins:finish2
+
+![alt Jenkins-Finish][imagen10]
+
+[imagen10]: images/finish2.png
+
+* Desde Open Blue Ocean:
+
+![alt Blue-Ocean-Finish][imagen11]
+
+[imagen11]: images/finish3.png
+
+* Desde la consola del pipeline en Jenkins (opcion **Console Output**):
+
+![alt Console-finish][imagen12]
+
+[imagen12]: images/finish4.png
+
+8.11. Comprobar que se tiene acceso a la aplicacion del proyecto de produccion, en este ejemplo el route es http://tasks-lgp-tasks-prod.apps.ocpdevmad01.tic1.intranet/:
+
+![alt Route1][imagen14]
+
+[imagen14]: images/route2.png
