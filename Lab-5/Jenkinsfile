@@ -1,0 +1,128 @@
+#!groovy
+podTemplate(
+  label: "skopeo-pod",
+  cloud: "openshift",
+  inheritFrom: "maven",
+  containers: [
+    containerTemplate(
+      name: "jnlp",
+      image: "image-registry.openshift-image-registry.svc:5000/${GUID}-jenkins/jenkins-agent-appdev",
+      resourceRequestMemory: "1Gi",
+      resourceLimitMemory: "2Gi",
+      resourceRequestCpu: "1",
+      resourceLimitCpu: "2"
+    )
+  ]
+) {
+  node('skopeo-pod') {
+    // Define Maven Command to point to the correct
+    // settings for our Nexus installation
+    def mvnCmd = "mvn -s nexus_settings.xml"
+
+    // Set variable globally to be available in all stages
+    // Set Development and Production Project Names
+    def devProject  = "${GUID}-tasks-dev"
+    def prodProject = "${GUID}-tasks-prod"
+
+    // Checkout Source Code.
+    stage('Checkout Source') {
+      git url: "${REPO}"
+      //checkout scm
+    }
+
+    // TBD Set the tag for the development image: build number
+    def devTag  = currentBuild.number
+    // Set the tag for the production image: devTag
+    def prodTag = "${devTag}"
+
+
+    stage('Unit Tests') {
+      echo "Running Unit Tests"
+      sh "${mvnCmd} test"
+    }
+
+    stage('Code Analysis') {
+      echo "Running Code Analysis"
+      sh "${mvnCmd} sonar:sonar -Dsonar.host.url=http://sonarqube-${GUID}-sonarqube.apps.ocpdevmad01.tic1.intranet -Dsonar.projectName=${JOB_BASE_NAME} -Dsonar.projectVersion=${devTag}"
+    }
+
+    // Build the OpenShift Image in OpenShift and tag it.
+    stage('Build and Tag OpenShift Image') {
+      echo "Building OpenShift container image tasks:${devTag}"
+      script {
+        openshift.withCluster() {
+          openshift.withProject("${devProject}") {
+            openshift.selector("bc", "tasks").startBuild("--from-repo=", "--wait=true")
+            openshift.tag("tasks:latest", "tasks:${devTag}")
+          }
+        }
+      }
+    }
+
+    // Deploy the built image to the Development Environment.
+    stage('Deploy to Dev') {
+      echo "Deploying container image to Development Project"
+      script {
+        // Update the Image on the Development Deployment Config
+        openshift.withCluster() {
+          openshift.withProject("${devProject}") {
+            // OpenShift 4
+            openshift.set("image", "dc/tasks", "tasks=image-registry.openshift-image-registry.svc:5000/${devProject}/tasks:${devTag}")
+
+            // Deploy the development application.
+            openshift.selector("dc", "tasks").rollout().latest();
+
+            // Wait for application to be deployed
+            def dc = openshift.selector("dc", "tasks").object()
+            def dc_version = dc.status.latestVersion
+            def rc = openshift.selector("rc", "tasks-${dc_version}").object()
+
+            echo "Waiting for ReplicationController tasks-${dc_version} to be ready"
+            while (rc.spec.replicas != rc.status.readyReplicas) {
+              sleep 5
+              rc = openshift.selector("rc", "tasks-${dc_version}").object()
+            }
+          }
+        }
+      }
+    }
+
+    // Promote to Production
+    stage('PROMOTE-to-PRO - Stage') {
+      input message: "Promote new code?", ok: "Promote"
+      }
+
+    stage('Promote to Production') {
+      echo "Promote to Production"
+      script {
+        openshift.withCluster() {
+          openshift.withProject("${prodProject}") {
+            openshift.tag("${devProject}/tasks:${devTag}", "${prodProject}/tasks:${prodTag}")
+            openshift.set("image", "dc/tasks", "tasks=image-registry.openshift-image-registry.svc:5000/${prodProject}/tasks:${prodTag}")
+
+            // Deploy the production application.
+            openshift.selector("dc", "tasks").rollout().latest();
+
+            // Wait for application to be deployed
+            def dc = openshift.selector("dc", "tasks").object()
+            def dc_version = dc.status.latestVersion
+            def rc = openshift.selector("rc", "tasks-${dc_version}").object()
+
+            echo "Waiting for ReplicationController tasks-${dc_version} to be ready"
+            while (rc.spec.replicas != rc.status.readyReplicas) {
+              sleep 5
+              rc = openshift.selector("rc", "tasks-${dc_version}").object()
+            }
+          }
+        }
+      }
+    }
+  }
+ }
+// Convenience Functions to read version from the pom.xml
+// Do not change anything below this line.
+// --------------------------------------------------------
+def getVersionFromPom(pom) {
+  def matcher = readFile(pom) =~ '<version>(.+)</version>'
+  matcher ? matcher[0][1] : null
+}
