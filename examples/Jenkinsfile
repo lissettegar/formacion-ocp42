@@ -1,0 +1,12 @@
+def version_g = 1.5 // Global variable
+def version_l = 2.0 // Global variable
+stage("Build") {
+  // Do my build steps
+  version_g = 1.6 // Updating Global variable
+  def version_l = 1.7 // Hiding Global with local variable
+}
+stage("Deploy") {
+  // Do my deployment steps
+  echo ${version_g} // 1.6
+  echo ${version_l} // 2.0
+}

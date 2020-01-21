@@ -1,8 +1,10 @@
 # Instrucciones Laboratorio 2
 
-## Desplegar una aplicación en OpenShift desde la consola, utilizando un código fuente de un repo en GitHub
+## Desplegar aplicaciones desde la Consola de OCP
 
-1. En la opcion **+Add**, seleccionar la opcion **From Git** para ver el formulario **Import from git**.
+### Desplegar una aplicación en OpenShift desde la consola, utilizando un código fuente de un repo en GitHub
+
+1. Entrar en la consola de OCP. En la opcion **+Add**, seleccionar la opcion **From Git** para ver el formulario **Import from git**.
 
 ![alt Crar App][imagen1]
 

@@ -28,7 +28,3 @@ spec:
     git:
       uri: 'https://github.com/lissettegar/openshift-tasks.git'
       ref: master
-  triggers:
-    - type: GitHub
-    - type: Generic
-    - type: ConfigChange

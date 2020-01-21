@@ -1,3 +1,7 @@
+# Instrucciones Laboratorio 5
+
+## Desplegar aplicacion en OCP usando un pipeline complejo
+
 ## 1. Instalar y configurar Nexus
 
 1.1. Exportar variable de entorno:
@@ -69,7 +73,9 @@
     nexus-registry   nexus-registry-lgp-nexus.apps.ocpdevmad01.tic1.intranet          nexus-registry   5000       edge          None
     nexus3           nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet                  nexus3           8081-tcp                 None
 
-1.12. Acceder al Nexus y seguir las indicaciones para cambiar la password. Desde un navegador acceder a la URL del Nexus que muestra el comando anterior, en este ejemplo es:
+1.12. Acceder a la consola de Nexus, logarse con el usuario "admin" y la contraseña obtenida en el paso 1.8. Seguir las indicaciones para cambiar la password  a "admin" y activar acceso Anonimo.
+
+Nota: para acceder a la consola, desde un navegador acceder a la URL del router Nexus que muestra el comando anterior, en este ejemplo es:
 
 *nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet*
 
@@ -141,7 +147,7 @@
     $ git remote add mirepo https://github.com/lissettegar/openshift-tasks.git
     $ git push -u mirepo master
 
-3.4. Configurar el fichero `nexus_settings.xml` para builds locales, asegurandp que la  <url> apunta a la URL externa del Nexus (deberia quedar como este ejemplo cambiando `lgp` por el GUID definido). Reemplazar el usuario y la password del Nexus por la que se hubiera definido en el punto 1.12:
+3.4. Configurar el fichero `nexus_settings.xml` para builds locales, asegurando que la entrada `url` apunta a la URL externa del Nexus (deberia quedar como este ejemplo cambiando `lgp` por el GUID definido). Reemplazar el usuario y la password del Nexus por la que se hubiera definido en el punto 1.12:
 
     <?xml version="1.0"?>
     <settings>
@@ -170,7 +176,7 @@
         <mirror>
           <id>Nexus</id>
           <name>Nexus Public Mirror</name>
-          <url>http://nexus3.lgp-nexus.svc.cluster.local:8081/repository/maven-all-public/</url>
+          <url>http:///nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet/repository/maven-all-public/</url>
           <mirrorOf>*</mirrorOf>
         </mirror>
       </mirrors>
@@ -346,12 +352,11 @@
 7.1. Crear el directorio tasks en el repo de la aplicacion.
 
     $ cd <directorio de trabajo>/opeshift-tasks
-    $ mkdir tasks
 
 7.1. En el repo de la formacion esta el Jenkinsfile que se usa en este lab, path **<directorio de trabajo>/formacion-ocp-4.2/Lab-5**. Copiar el fichero **Jenkinsfile** al repo de la aplicacion que creamos en el paso 3 (ejemplo):
 
     $ cp <directorio de trabajo>/formacion-ocp-4.2/Lab-5/
-    $ cp Jenkinsfile <directorio de trabajo>/opeshift-tasks/tasks
+    $ cp Jenkinsfile <directorio de trabajo>/opeshift-tasks/
 
 7.2. Subir los cambios al repo:
 
@@ -498,3 +503,11 @@
 ![alt Route1][imagen14]
 
 [imagen14]: images/route2.png
+
+## 9. Limpiar el entorno
+
+    oc delete project ${GUID}-tasks-dev
+    oc delete project ${GUID}-tasks-prod
+    oc delete project ${GUID}-nexus
+    oc delete project ${GUID}-sonarqube
+    oc delete project ${GUID}-jenkins
