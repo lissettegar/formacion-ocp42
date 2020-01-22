@@ -1,78 +1,196 @@
-# Instrucciones Laboratorio 2
+# Instrucciones Laboratorio 3
 
-## Desplegar aplicaciones desde la Consola de OCP
+## Desplegar aplicaciones desde linea de comando y uso de configmaps, variables de entorno, secrets
 
-### Desplegar una aplicación en OpenShift desde la consola, utilizando un código fuente de un repo en GitHub
+### 1. Uso de Variables de entorno
 
-1. Entrar en la consola de OCP. En la opcion **+Add**, seleccionar la opcion **From Git** para ver el formulario **Import from git**.
+  1.1. Crear el proyecto y desplegar una aplicacion desde un repositorio de Git:
 
-![alt Crar App][imagen1]
+    $ oc new-project $GUID-env
+    $ oc new-app https://github.com/redhat-gpte-devopsautomation/PrintEnv
 
-[imagen1]: images/create-app1.png
+  1.2. Ver los logs del BuildConfig:
 
-2. En la seccion **Git** escribir la URL del repositorio Git donde esta el codigo fuente a partir del cual se desea crear una aplicación. En este ejemplo usaremos la URL de una aplicación nodejs:
-https://github.com/sclorg/nodejs-ex.
+    $ oc logs -f bc/printenv
 
-3. En la sección **Builder**, seleccionar el Builder Image que se va a usar, en este caso **Node.js**, para ver los detalles. En este caso usaremos la version **latest**.
+  1.3. Crear un servicio para la app:
 
-4. En la sección **General** elegir un nombre para la aplicacion. Se puede usar el que viene por defecto.
+    $ oc expose svc printenv
 
-5. En la sección **Advanced Options**, la opción **Create a route to the application** está seleccionada de forma predeterminada para que se cree el router y poder acceder a la aplicacion.
+  1.4 Ver los recursos del projecto:
 
-6. Opcionalmente se pueden configurar el resto de opciones avanzadas.
+    $ oc get all
 
-7. Clic en **Crear** para crear la aplicación y ver su estado de compilación en la vista **Topología**.
+  1.5. Comprobar que variables de entorno estan definidas en el pod en ese momento:
 
-![alt Crar App][imagen2]
+    $ oc exec <printenv-X-XXX> printenv |grep APP
 
-[imagen2]: images/create-app2.png
+  1.6. Configurar dos variables de entorno a la aplicacion:
 
-8. Comprobar en la opcion **Build** que se ha creado un BuildConfig para la aplicacion y que seleccionando el **Buildconfig** podemos ver los Buids desplegados (en este caso solo estara uno)
+    $ oc set env dc/printenv APP_VAR_1=Value1 APP_VAR_2=Value2
 
-![alt Crar App][imagen3]
+  1.7. Esperar a que la aplicacion redespliegue:
 
-[imagen3]: images/create-app3.png
+    $ watch oc get pod
 
-![alt Crar App][imagen4]
+  1.8. Cuando el pod este corriendo pulsar Ctrl+C para salir del watch y continuar.
 
-[imagen4]: images/create-app4.png
+  1.9. Comprobar nuevamenete las variables de entorno definidas dentro del pod:
 
-9. Desde la vista **Topología**, acceder a la aplicacion
+    $ oc exec <printenv-X-XXX> printenv |grep APP
+    APP_VAR_1=Value1
+    APP_VAR_2=Value2
+    APP_ROOT=/opt/app-root
 
-![alt Crar App][imagen8]
+  1.10. Borrar la segunda variable de entorno y volver a comprobarlas con el "oc exec":
 
-[imagen8]: images/create-app8.png
+    $ oc set env dc/printenv APP_VAR_2-
 
-## Desplegar una aplicación en OpenShift desde la consola usando el catalogo
+  1.9. Comprobar que la variable ya no esta definida:
 
-1. En la opcion **+Add**, seleccionar la opcion **From Catalog** para ver el formulario **Developer Catalog** y filtrar por **Jenkins**.
+    $ oc exec <printenv-X-XXX> printenv |grep APP
+    APP_VAR_1=Value1
+    APP_ROOT=/opt/app-root
 
-![alt Crar App][imagen5]
 
-[imagen5]: images/create-app5.png
+### 2. Uso de ConfigMaps
 
-2. Seleccionar el **Jenkins Ephemeral** y hacer clic en **Instantiate Template**
+  2.1. Crear un ConfigMap con 2 variables de entorno:
 
-3. Dejar todos los valores por defecto y observar que indica todos los recursos que se crearan.
+    $ oc create configmap printenv-config \
+     --from-literal=APP_VAR_3=Value3 \
+     --from-literal=APP_VAR_4=Value4
 
-![alt Crar App][imagen6]
+  2.2. Actualizar el deployment de la aplicacion para añadir las variables definidas en el configmap:
 
-[imagen6]: images/create-app6.png
+    $ oc edit dc printenv
 
-4. Clic en **Create** e ir a la vista **Topologia** para ver la app desplegada
+      spec:
+        containers:
+        - env:
+          - name: APP_VAR_1
+            value: Value1
+          - name: APP_VAR_3
+            valueFrom:
+              configMapKeyRef:
+                name: printenv-config
+                key: APP_VAR_3
+          - name: APP_VAR_4
+            valueFrom:
+              configMapKeyRef:
+                name: printenv-config
+                key: APP_VAR_4
 
-![alt Crar App][imagen7]
+  2.3. Para salir del edit hay que guardar la configuracion ":wq!"
 
-[imagen7]: images/create-app7.png
+  2.4. Esperar a que la aplicacion redespliegue:
 
-5. Desde la vista **Topologia**, acceder a la aplicacion
+    $ watch oc get pod
 
-![alt Crar App][imagen9]
+  2.5. Cuando el pod este corriendo pulsar Ctrl+C para salir del watch y continuar.
 
-[imagen9]: images/create-app9.png
+  2.6. Comprobar nuevamenete las variables de entorno definidas dentro del pod:
 
-6. Limpiar el entorno
+    $ oc exec <printenv-X-XXX> printenv |grep APP
+    APP_VAR_4=Value4
+    APP_VAR_1=Value1
+    APP_VAR_3=Value3
+    APP_ROOT=/opt/app-root
 
-```shell
-$ oc delete project $GUID-formacion
-```
+  2.7. Definir una variable de entorno que lee el contenido de un fichero:
+
+    $ oc set env dc/printenv READ_FROM_FILE=/data/configfile.txt
+
+  2.8. Crear el fichero de configuracion:
+
+    $ echo "This is a very important Config File" > configfile.txt
+
+  2.9. Crear un ConfigMapp:
+
+    $ oc create configmap printenv-config-file --from-file=configfile.txt
+
+  2.10. Añadir el ConfigMap a la configuracion del deployment:
+
+    $ oc set volume dc/printenv --add --overwrite --name=config-volume -m /data/ -t configmap --configmap-name=printenv-config-file
+
+  2.11. Encontrar el pod que este Running:
+
+    $ oc get pods
+    NAME                READY   STATUS      RESTARTS   AGE
+    printenv-1-build    0/1     Completed   0          41m
+    printenv-1-deploy   0/1     Completed   0          38m
+    printenv-2-deploy   0/1     Completed   0          7m31s
+    printenv-3-deploy   0/1     Completed   0          4m44s
+    printenv-4-deploy   0/1     Completed   0          97s
+    printenv-6-deploy   0/1     Completed   0          20s
+    printenv-6-n8zj6    1/1     Running     0          9s
+
+  2.12. Abrir una shell en el pod (en este ejemplo es el printenv-6-n8zj6) y comprobar el contenido del fichero:
+
+    $ oc rsh printenv-6-n8zj6
+
+    sh-4.2$ ls /data/configfile.txt
+    /data/configfile.txt
+
+    sh-4.2$ cat /data/configfile.txt
+    This is a very important Config File
+
+## 3. Uso de secrets para configurar variables de entorno
+
+  3.1. Crear un secret desde un fichero:
+
+    $ echo 'r3dh4t1!' > ./password.txt
+    $ echo 'admin' > ./user.txt
+    $ oc create secret generic printenv-secret --from-file=app_user=user.txt --from-file=app_password=password.txt
+    $ oc describe secrets printenv-secret
+
+  3.2. Comprobar el secret:
+
+    $ oc get secret printenv-secret -o yaml
+
+    apiVersion: v1
+    data:
+      app_password: cjNkaDR0MSEK
+      app_user: YWRtaW4K
+    kind: Secret
+    [...]
+
+  3.3. Decodificar el UserID y el pass usando *base64 --decode*:
+
+    $ echo "cjNkaDR0MSEK" | base64 --decode
+    $ echo "YWRtaW4K" | base64 --decode  
+
+  3.4. Añadir el secret a la app *printenv*:
+
+    $ oc set env dc/printenv --from=secret/printenv-secret
+
+  3.5. Verificar que el valor de las variables es el correcto:
+
+    $ oc set env dc/printenv --list
+
+    # deploymentconfigs/printenv, container printenv
+    APP_VAR_1=Value1
+    # APP_VAR_3 from configmap printenv-config, key APP_VAR_3
+    # APP_VAR_4 from configmap printenv-config, key APP_VAR_4
+    READ_FROM_FILE=/data/configfile.txt
+    # APP_USER from secret printenv-secret, key app_user
+    # APP_PASSWORD from secret printenv-secret, key app_password      
+
+  3.6. Configurar las mismas variables de entorno para el MySQL añadiendo el prefijo *MYSQL_*:
+
+    $ oc set env dc/printenv --from=secret/printenv-secret --prefix=MYSQL_
+    $ oc set env dc/printenv --list
+
+    # deploymentconfigs/printenv, container printenv
+    APP_VAR_1=Value1
+    # APP_VAR_3 from configmap printenv-config, key APP_VAR_3
+    # APP_VAR_4 from configmap printenv-config, key APP_VAR_4
+    READ_FROM_FILE=/data/configfile.txt
+    # APP_USER from secret printenv-secret, key app_user
+    # APP_PASSWORD from secret printenv-secret, key app_password
+    # MYSQL_APP_PASSWORD from secret printenv-secret, key app_password
+    # MYSQL_APP_USER from secret printenv-secret, key app_user
+
+## 4. Limpiar el entorno:
+
+    oc delete project $GUID-env
