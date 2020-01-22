@@ -1,6 +1,14 @@
-# Instrucciones Laboratorio 3
+# Instrucciones Laboratorio 2
 
 ## Desplegar aplicaciones desde linea de comando y uso de configmaps, variables de entorno, secrets
+
+Requisitos:
+
+* Logarse en el cluster con el comando "oc login ..."
+
+* Definir la variable GUID:
+
+      $ export GUID=<iniciales>
 
 ### 1. Uso de Variables de entorno
 
@@ -17,7 +25,7 @@
 
     $ oc expose svc printenv
 
-  1.4 Ver los recursos del projecto:
+  1.4 Ver los recursos del projecto. Comprobar como se han creado los objetos deployment config, pods, secrets, etc:
 
     $ oc get all
 
