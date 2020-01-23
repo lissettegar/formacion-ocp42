@@ -4,7 +4,7 @@
 
 ## 1. Instalar y configurar Nexus
 
-1.1. Exportar variable de entorno:
+1.1. Exportar la variable de entorno:
 
     $ export GUID=<iniciales en minuscula>
 
@@ -17,7 +17,7 @@
     $ oc new-app sonatype/nexus3:latest
     $ oc expose svc nexus3
 
-1.4. Pausar el despliegue para hacer cambios en el deployment config:
+1.4. Pausar el despliegue para hacer cambios en el deployment config (hacemos un pause para que no redespliegue un nuevo pod con cada unos de los cambios):
 
     $ oc rollout pause dc nexus3
 
@@ -26,16 +26,16 @@
     $ oc patch dc nexus3 --patch='{ "spec": { "strategy": { "type": "Recreate" }}}'
     $ oc set resources dc nexus3 --limits=memory=2Gi,cpu=2 --requests=memory=1Gi,cpu=500m
 
-1.6. Configurar los valores para el `liveness` y `readiness` probe para asegurar el correcto funcionamiento del Nexus:
+1.6. Configurar los valores para el `liveness` y `readiness` probe para comprobar el correcto funcionamiento del Nexus:
 
     $ oc set probe dc/nexus3 --liveness --failure-threshold 3 --initial-delay-seconds 60 -- echo ok
     $ oc set probe dc/nexus3 --readiness --failure-threshold 3 --initial-delay-seconds 60 --get-url=http://:8081/
 
-1.7. Reanudar el deployment del Nexus deployment configuration para que actualice todos los cambios:
+1.7. Reanudar el deployment del Nexus para que actualice todos los cambios:
 
     $ oc rollout resume dc nexus3
 
-1.8. Una vez que Nexus este desplegado, configurar el repositorio de Nexus usando el script proporcionado (setup_nexus3.sh). Usar el usuario por defecto (admin). La password por defecto de `admin` se guarda en el pod de Nexus en el fichero `/nexus-data/admin.password`. Usar el comando `oc rsh` para obtener dicha password:
+1.8. Una vez que Nexus este desplegado, configurar el repositorio de Nexus usando el script `setup_nexus3.sh` (se descargara con un curl). Usar el usuario por defecto (admin). La password por defecto de `admin` se guarda en el pod de Nexus en el fichero `/nexus-data/admin.password`. Para obtener dicha password usaremos el comando `oc rsh`:
 
      $ cd /home/<directorio de trabajo>
      $ oc get pods
@@ -50,7 +50,7 @@
      $ chmod +x setup_nexus3.sh
      $ ./setup_nexus3.sh admin $NEXUS_PASSWORD http://$(oc get route nexus3 --template='{{ .spec.host }}')
 
-1.9. Este script crea:
+1.9. Este script `setup_nexus3.sh` crea lo siguiente:
 
 * Algunos repositorios proxy de Maven para almacenar en caché las dependencias de Red Hat y JBoss.
 * Un repositorio de grupo maven-all-public que contiene los repositorios proxy para todos los artefactos necesarios.
@@ -61,23 +61,20 @@
 * Asegúrese de que la secuencia de comandos se realizó correctamente comprobando los códigos de retorno HTTP. Debería ver HTTP / 1.1 200 OK.
 
 
-1.10. Crear un servicio para exponer el puerto 5000 del registro docker de Nexus y crear el route para acceder desde el exterior:
+1.10. Crear un servicio para exponer el puerto 5000 del registro docker de `Nexus` y crear el route para acceder desde el exterior:
 
     $ oc expose dc nexus3 --port=5000 --name=nexus-registry
     $ oc create route edge nexus-registry --service=nexus-registry --port=5000
 
-1.11. Confirmar que se ha creado:
+1.11. Confirmar que se ha creado el route:
 
     $ oc get routes -n ${GUID}-nexus
     NAME             HOST/PORT                                                 PATH   SERVICES         PORT       TERMINATION   WILDCARD
     nexus-registry   nexus-registry-lgp-nexus.apps.ocpdevmad01.tic1.intranet          nexus-registry   5000       edge          None
     nexus3           nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet                  nexus3           8081-tcp                 None
 
-1.12. Acceder a la consola de Nexus, logarse con el usuario "admin" y la contraseña obtenida en el paso 1.8. Seguir las indicaciones para cambiar la password  a "admin" y activar acceso Anonimo.
+1.12. Acceder a la consola de Nexus, logarse con el usuario "admin" y la contraseña obtenida en el paso `1.8`. Seguir las indicaciones para cambiar la password del usuario `admin` a `admin` y no activar acceso `Anonimo`.
 
-Nota: para acceder a la consola, desde un navegador acceder a la URL del router Nexus que muestra el comando anterior, en este ejemplo es:
-
-*nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet*
 
 ## 2. Instalar y configurar Sonarqube
 
@@ -85,41 +82,23 @@ Nota: para acceder a la consola, desde un navegador acceder a la URL del router 
 
     $ oc new-project ${GUID}-sonarqube --display-name "${GUID} Shared Sonarqube"
 
-2.2. Desplegar el un PostgreSQL Database para el Sonarqube:
+2.2. Desplegar el sonarqube desde el `template` sonarqube-ephemeral:
 
-    $ oc new-app --template=postgresql-ephemeral --param POSTGRESQL_USER=sonar --param POSTGRESQL_PASSWORD=sonar --param POSTGRESQL_DATABASE=sonar --labels=app=sonarqube_db
+    $ oc new-app sonarqube-ephemeral
 
-2.3. Asegurarse que la ddbb esta desplegada antes de continuar con el siguiente paso:
+2.3. Para ver el yaml del template (el template creará todos los objetos necesarios para la aplicacion Sonarqube, incluido el route):
+
+    $ oc get template sonarqube-ephemeral -nopenshift -oyaml
+
+2.4. Comprobar todos los objetos creados:
 
     $ oc get all
-    NAME                      READY   STATUS      RESTARTS   AGE
-    pod/postgresql-1-7r7mk    1/1     Running     0          77s
-    pod/postgresql-1-deploy   0/1     Completed   0          85s
-
-    NAME                                 DESIRED   CURRENT   READY   AGE
-    replicationcontroller/postgresql-1   1         1         1       85s
-
-    NAME                 TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
-    service/postgresql   ClusterIP   172.30.104.252   <none>        5432/TCP   86s
-
-    NAME                                            REVISION   DESIRED   CURRENT   TRIGGERED BY
-    deploymentconfig.apps.openshift.io/postgresql   1          1         1         config,image(postgresql:10)
-
-2.4. Desplegar el Sonarqube desde la imagen `wkulhanek/sonarqube:6.7.6` disponible en DockerHub. Esta imagen espera las siguientes variables de entorno: SONARQUBE_JDBC_USERNAME, SONARQUBE_JDBC_PASSWORD, y SONARQUBE_JDBC_URL. Crear un route:
-
-    $ oc new-app --docker-image=wkulhanek/sonarqube:6.7.6 --env=SONARQUBE_JDBC_USERNAME=sonar --env=SONARQUBE_JDBC_PASSWORD=sonar --env=SONARQUBE_JDBC_URL=jdbc:postgresql://postgresql/sonar --labels=app=sonarqube
-
-Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
-
-    $ oc new-app --docker-image=siamaksade/sonarqube:latest --env=SONARQUBE_JDBC_USERNAME=sonar --env=SONARQUBE_JDBC_PASSWORD=sonar --env=SONARQUBE_JDBC_URL=jdbc:postgresql://postgresql/sonar --labels=app=sonarqube
-
-    $ oc expose service sonarqube
 
 2.5. Pausar el despliegue para hacer cambios en el deployment config:
 
     $ oc rollout pause dc sonarqube
 
-2.6. Cambiar la estrategia de deployment de `Rolling` a `Recreate` y configurar `requests` y `limits` para la `memoria`:
+2.6. Configurar `requests` y `limits` de `cpu` y cambiar la estrategia de despliegue:
 
     $ oc set resources dc/sonarqube --limits=memory=3Gi,cpu=2 --requests=memory=2Gi,cpu=1
     $ oc patch dc sonarqube --patch='{ "spec": { "strategy": { "type": "Recreate" }}}'
@@ -129,11 +108,11 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     $ oc set probe dc/sonarqube --liveness --failure-threshold 3 --initial-delay-seconds 40 -- echo ok
     $ oc set probe dc/sonarqube --readiness --failure-threshold 3 --initial-delay-seconds 20 --get-url=http://:9000/about
 
-2.8. Reanudar el deployment del Sonarqube deployment configuration para que actualice todos los cambios:
+2.8. Reanudar el deployment del Sonarqube para que actualice todos los cambios:
 
     $ oc rollout resume dc sonarqube
 
-2.9. Una vez que el SonarQube haya arrancado completamente, inicie sesión a través de la ruta expuesta. Credenciales `admin` y la contraseña es `admin`.
+2.9. Una vez que el SonarQube haya arrancado, iniciar sesión a través de la ruta expuesta. Credenciales `admin`/`admin`.
 
 
 ## 3. Crear repo en Git para la aplicacion "Tasks"
@@ -144,15 +123,15 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
     $ cd /home/<directorio de trabajo>
 
-3.3. Clonarse el repo donde esta la app **Tasks** y añadir nuestro repo como remote:
+3.3. Clonarse el repo donde esta la app **Tasks** y añadir nuestro repo como remote (sustituir https://github.com/lissettegar/openshift-tasks.git por vuestro repo y `mirepo` por el nombre que querais asignarle):
 
     $ git clone https://github.com/redhat-gpte-devopsautomation/openshift-tasks.git
     $ cd /home/<directorio de trabajo>/openshift-tasks
 
-    $ git remote add mirepo https://github.com/lissettegar/openshift-tasks.git
-    $ git push -u mirepo master
+    $ git remote add <mirepo> <https://github.com/lissettegar/openshift-tasks.git>
+    $ git push -u <mirepo> master
 
-3.4. Configurar el fichero `nexus_settings.xml` para builds locales, asegurando que la entrada `url` apunta a la URL externa del Nexus (deberia quedar como este ejemplo cambiando `lgp` por el GUID definido). Reemplazar el usuario y la password del Nexus por la que se hubiera definido en el punto 1.12:
+3.4. En el repo que acabais de clonar hay 2 ficheros que hay que modificar (`nexus_settings.xml` y `nexus_openshift_settings.xml`). Cambiar la entrada `url` para que apunte a la URL externa del Nexus (deberia quedar como este ejemplo cambiando `lgp` por el GUID definido). Reemplazar el usuario y la password del Nexus por la que se hubiera definido en el punto `1.12` (admin/admin):
 
     <?xml version="1.0"?>
     <settings>
@@ -173,35 +152,15 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     </servers>
     </settings>
 
-3.5. Cambiar tambien el contenido del fichero `nexus_openshift_settings.xml` para que apunte a la URL interna del Nexus (deberia quedar como este ejemplo cambiando `lgp` por el GUID definido). Reemplazar el usuario y la password del Nexus por la que se hubiera definido en el punto 1.12:
 
-    <?xml version="1.0"?>
-    <settings>
-      <mirrors>
-        <mirror>
-          <id>Nexus</id>
-          <name>Nexus Public Mirror</name>
-          <url>http:///nexus3-lgp-nexus.apps.ocpdevmad01.tic1.intranet/repository/maven-all-public/</url>
-          <mirrorOf>*</mirrorOf>
-        </mirror>
-      </mirrors>
-      <servers>
-        <server>
-          <id>nexus</id>
-          <username>admin</username>
-          <password>admin</password>
-        </server>
-      </servers>
-    </settings>
-
-3.6. Subir los cambios al repo que os habeis creado en el paso 3.1:
+3.5. Subir los cambios al repo que os habeis creado en el paso `3.1`:
 
     $ git commit -m "Updated Settings" nexus_settings.xml nexus_openshift_settings.xml
-    $ git push mirepo  master
+    $ git push <mirepo>  master
 
 ## 4. Instalar y configurar Jenkins
 
-4.1. Cree un nuevo proyecto donde instalar Jenkins:
+4.1. Cree un nuevo proyecto donde instalar `Jenkins`:
 
     $ oc new-project ${GUID}-jenkins --display-name "${GUID} Shared Jenkins"
 
@@ -210,7 +169,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     $ oc new-app jenkins-ephemeral --param ENABLE_OAUTH=true --param MEMORY_LIMIT=2Gi --param DISABLE_ADMINISTRATIVE_MONITORS=true
     $ oc set resources dc jenkins --limits=memory=2Gi,cpu=2 --requests=memory=1Gi,cpu=500m
 
-4.3. Para crear un pod de agente de Jenkins personalizado, se usara un build con la estrategia Docker. Es mucho más fácil que construir la imagen del contenedor localmente y luego subirla al registro de OpenShift:
+4.3. Para crear un pod de agente de Jenkins personalizado, se creará un BuildConfig con estrategia `Docker` y fuente `Dockerfile`. Es mucho más fácil que construir la imagen del contenedor localmente y luego subirla al registro de OpenShift:
 
     $ oc new-build --strategy=docker -D $'FROM quay.io/openshift/origin-jenkins-agent-maven:4.1.0\n
        USER root\n
@@ -221,7 +180,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
        yum $DISABLES -y --setopt=tsflags=nodocs install skopeo && yum clean all\n
        USER 1001' --name=jenkins-agent-appdev -n ${GUID}-jenkins
 
-4.4. Este comando creará la imagen y la cargará automáticamente en el registro interno del clúster. También creará un ImageStream. Comprobarlo:
+4.4. El BuildConfig creará la imagen para el agente de Jenkins donde correra nuestro pipeline:
 
     $ oc get is
     NAME                         IMAGE REPOSITORY                                                                                               TAGS     UPDATED
@@ -229,7 +188,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     origin-jenkins-agent-maven   default-route-openshift-image-registry.apps.ocpdevmad01.tic1.intranet/lgp-jenkins/origin-jenkins-agent-maven   4.1.0    2 minutes ago
 
 
-## 5. Crear el proyecto de desarrollo para la aplicacion
+## 5. Crear el proyecto de Desarrollo para la aplicacion Tasks
 
 5.1. Crear el proyecto que contendra la versión de desarrollo de la aplicación openshift-tasks:
 
@@ -247,21 +206,23 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
     $ oc new-app ${GUID}-tasks-dev/tasks:0.0-0 --name=tasks --allow-missing-imagestream-tags=true -n ${GUID}-tasks-dev
 
-5.5. Comprobar que se ha creado el BuildConfig y el imagestream:
+5.5. Comprobar que se han creado el deploymentconfig, el buildconfig y el imagestream:
 
     $ oc get all
+    NAME                                       REVISION   DESIRED   CURRENT   TRIGGERED BY
+    deploymentconfig.apps.openshift.io/tasks   0          1         0         config,image(tasks:0.0-0)
+
     NAME                                   TYPE     FROM     LATEST
     buildconfig.build.openshift.io/tasks   Source   Binary   0
 
-    NAME                                   IMAGE REPOSITORY                                                                            TAGS   UPDATED
-    imagestream.image.openshift.io/tasks   default-route-openshift-image-registry.apps.ocpdevmad01.tic1.intranet/lgp-tasks-dev/tasks          
-
+    NAME                                   IMAGE REPOSITORY                                                                            TAGS    UPDATED
+    imagestream.image.openshift.io/tasks   default-route-openshift-image-registry.apps.ocpdevmad01.tic1.intranet/lgp-tasks-dev/tasks   0.0-0   
 
 5.6. Deshabilitar la construcción y el despliegue automáticos del deploymentconfig:
 
     $ oc set triggers dc/tasks --remove-all -n ${GUID}-tasks-dev
 
-5.7. Exponer el deploymentconfig como un service (en el puerto 8080) y el service como un route:
+5.7. Crear el `service` y el `route`:
 
     $ oc expose dc tasks --port 8080 -n ${GUID}-tasks-dev
     $ oc expose svc tasks -n ${GUID}-tasks-dev
@@ -294,7 +255,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     NAME                             HOST/PORT                                            PATH   SERVICES   PORT   TERMINATION   WILDCARD
     route.route.openshift.io/tasks   tasks-lgp-tasks-dev.apps.ocpdevmad01.tic1.intranet          tasks      8080                 None
 
-## 6. Crear el proyecto de produccion para la aplicacion
+## 6. Crear el proyecto de produccion para la aplicacion Tasks
 
 6.1. Crear el proyecto que contendra la versión de produccion de la aplicación openshift-tasks:
 
@@ -305,7 +266,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     $ oc policy add-role-to-group system:image-puller system:serviceaccounts:${GUID}-tasks-prod -n ${GUID}-tasks-dev
     $ oc policy add-role-to-user edit system:serviceaccount:${GUID}-jenkins:jenkins -n ${GUID}-tasks-prod
 
-6.3. Crear un deploymentconfig tasks en el proyecto production a partir de la imagen del proyecto de desarrollo:
+6.3. Crear un deploymentconfig tasks en el proyecto `production` a partir de la imagen del proyecto de `desarrollo`:
 
     $ oc new-app ${GUID}-tasks-dev/tasks:0.0 --name=tasks --allow-missing-imagestream-tags=true -n ${GUID}-tasks-prod
 
@@ -322,7 +283,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
     $ oc set triggers dc/tasks --remove-all -n ${GUID}-tasks-prod
 
-6.6.. Exponer el deploymentconfig como un service (en el puerto 8080) y el service como un route:
+6.6. Crear el `service` y el `route` para la aplicacion de produccion:
 
     $ oc expose dc tasks --port 8080 -n ${GUID}-tasks-prod
     $ oc expose svc tasks -n ${GUID}-tasks-prod
@@ -352,13 +313,9 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     NAME                             HOST/PORT                                             PATH   SERVICES   PORT   TERMINATION   WILDCARD
     route.route.openshift.io/tasks   tasks-lgp-tasks-prod.apps.ocpdevmad01.tic1.intranet          tasks      8080                 None
 
-## 7. Preparar el Jenkinsfile y copiarlo en el Repo de Git de la aplicacion
+## 7. Preparar el Jenkinsfile y subirlo al Repo de Git de la aplicacion
 
-7.1. Crear el directorio tasks en el repo de la aplicacion.
-
-    $ cd <directorio de trabajo>/opeshift-tasks
-
-7.1. En el repo de la formacion esta el Jenkinsfile que se usa en este lab, path **<directorio de trabajo>/formacion-ocp-4.2/Lab-5**. Copiar el fichero **Jenkinsfile** al repo de la aplicacion que creamos en el paso 3 (ejemplo):
+7.1. En el repo de la formacion esta el fichero Jenkinsfile que se usara en este lab, path **<directorio de trabajo>/formacion-ocp-4.2/Lab-5**. Copiar el fichero **Jenkinsfile** al repo de la aplicacion que se creo en el paso `3` (ejemplo):
 
     $ cp <directorio de trabajo>/formacion-ocp-4.2/Lab-5/
     $ cp Jenkinsfile <directorio de trabajo>/opeshift-tasks/
@@ -367,9 +324,9 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
     $ git add .;git commit -m "v`date '+%y%m%d'`";git push <mirepo> master
 
-## 8. Crear un Build Config que apunte al pipeline en el repositorio de codigo
+## 8. Crear un Build Config de tipo Pipeline
 
-8.1. Modificar el fichero **buidconfig-task.yaml** cambiando el namespace por el nombre del namespace de Jenkins de cada uno, cambiar el GUID y el nombre del repo de Git que se este usando:
+8.1. Modificar el fichero **buidconfig-task.yaml** (path <directorio de trabajo>/formacion-ocp-4.2/Lab-5) cambiando el namespace por el nombre del namespace de Jenkins de cada uno, cambiar el GUID y el nombre del repo de Git que se este usando (repo de la aplicacion Tasks):
 
 * GUID: el valor de la variable que se este usando para definir los proyectos.
 * REPO: La URL al repositorio de codigo donde esta el Jenkinsfile
@@ -463,7 +420,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
 [imagen8]: images/promote.png
 
-8.8. Antes de promover el cambio a produccion comprobar que la aplicacion tasks esta corriendo en el proyecto de desarrollo. Comprobarlo por linea de comando y en el GUI. En este ejemplo es el pod **tasks-1-kf9mc**:
+8.8. Antes de promover el cambio a produccion comprobar que la aplicacion `Tasks` esta corriendo en el proyecto de `desarrollo`. Comprobarlo por linea de comando y en el GUI. En este ejemplo es el pod **tasks-1-kf9mc**:
 
     $ oc get pods -n $GUID-tasks-dev
     NAME             READY   STATUS      RESTARTS   AGE
@@ -471,7 +428,7 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
     tasks-1-deploy   0/1     Completed   0          22m
     tasks-1-kf9mc    1/1     Running     0          22m
 
-8.9. Comprobar que se tiene acceso a la aplicacion de del proyecto de desarrollo, en este ejemplo el route es http://tasks-lgp-tasks-dev.apps.ocpdevmad01.tic1.intranet/:
+8.9. Comprobar que se tiene acceso a la aplicacion del proyecto de desarrollo, en este ejemplo el route es http://tasks-lgp-tasks-dev.apps.ocpdevmad01.tic1.intranet/:
 
 ![alt Route1][imagen13]
 
@@ -503,11 +460,13 @@ Nota: Si falla al encontrar la imagen anterior probar con la siguiente:
 
 [imagen12]: images/finish4.png
 
-8.11. Comprobar que se tiene acceso a la aplicacion del proyecto de produccion, en este ejemplo el route es http://tasks-lgp-tasks-prod.apps.ocpdevmad01.tic1.intranet/:
+8.11. Comprobar que se tiene acceso a la aplicacion del proyecto de `produccion`, en este ejemplo el route es http://tasks-lgp-tasks-prod.apps.ocpdevmad01.tic1.intranet/:
 
 ![alt Route1][imagen14]
 
 [imagen14]: images/route2.png
+
+8.12. Acceder a la consola de `Nexus` para ver los ficheros que ha subido y de `Sonarqube` para ver el resultado de los tests.
 
 ## 9. Limpiar el entorno
 

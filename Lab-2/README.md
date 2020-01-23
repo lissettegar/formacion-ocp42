@@ -21,7 +21,7 @@ Requisitos:
 
     $ oc logs -f bc/printenv
 
-  1.3. Crear un servicio para la app:
+  1.3. Crear un route para la app:
 
     $ oc expose svc printenv
 
