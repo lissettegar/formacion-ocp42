@@ -1,4 +1,66 @@
-# Instrucciones Laboratorio 5
+# Instrucciones Laboratorio 6
+
+## Visualizando Logs
+
+1. Desplegar la aplicacion printenv del lab-2. Seguir los pasos del Lab-2 hasta el punto 1.4.
+2. Comprobar los logs de la aplicacion por linea de comandos:
+
+        $ oc logs printenv-1-8px6q
+        git version 1.8.3.1
+        Environment:
+        DEV_MODE=false
+        NODE_ENV=production
+        DEBUG_PORT=5858
+        Running as user uid=1002800000(1002800000) gid=0(root) groups=0(root),1002800000
+        Launching via npm...
+        npm info it worked if it ends with ok
+        npm info using npm@6.9.0
+        npm info using node@v10.16.3
+        npm info lifecycle @~prestart: @
+        npm info lifecycle @~start: @
+
+        > @ start /opt/app-root/src
+        > node app.js
+
+        Node Backend is listening at 8080
+
+3. Comprobar los eventos del proyecto:
+
+        $ oc get events
+        LAST SEEN   TYPE     REASON              OBJECT                             MESSAGE
+        12m         Normal   Scheduled           pod/printenv-1-8px6q               Successfully assigned lgp-env/printenv-1-8px6q to worker2dev.ocpdevmad01.tic1.intranet
+        12m         Normal   Pulling             pod/printenv-1-8px6q               Pulling image "image-registry.openshift-image-registry.svc:5000/lgp-env/printenv@sha256:ea4ece6fd6a8573674512c8251883bd9dddc8bbd4a23366b6e3e14671d57161b"
+        12m         Normal   Pulled              pod/printenv-1-8px6q               Successfully pulled image "image-registry.openshift-image-registry.svc:5000/lgp-env/printenv@sha256:ea4ece6fd6a8573674512c8251883bd9dddc8bbd4a23366b6e3e14671d57161b"
+        12m         Normal   Created             pod/printenv-1-8px6q               Created container printenv
+        12m         Normal   Started             pod/printenv-1-8px6q               Started container printenv
+        13m         Normal   Scheduled           pod/printenv-1-build               Successfully assigned lgp-env/printenv-1-build to worker2dev.ocpdevmad01.tic1.intranet
+        13m         Normal   Pulled              pod/printenv-1-build               Container image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:a16c3892ffd8ebc28677fec63db9311adfeb99693b99e10fef16573e861f6bbb" already present on machine
+        13m         Normal   Created             pod/printenv-1-build               Created container git-clone
+        13m         Normal   Started             pod/printenv-1-build               Started container git-clone
+        13m         Normal   Pulled              pod/printenv-1-build               Container image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:a16c3892ffd8ebc28677fec63db9311adfeb99693b99e10fef16573e861f6bbb" already present on machine
+        13m         Normal   Created             pod/printenv-1-build               Created container manage-dockerfile
+        13m         Normal   Started             pod/printenv-1-build               Started container manage-dockerfile
+        13m         Normal   Pulled              pod/printenv-1-build               Container image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:a16c3892ffd8ebc28677fec63db9311adfeb99693b99e10fef16573e861f6bbb" already present on machine
+        13m         Normal   Created             pod/printenv-1-build               Created container sti-build
+        13m         Normal   Started             pod/printenv-1-build               Started container sti-build
+        12m         Normal   Scheduled           pod/printenv-1-deploy              Successfully assigned lgp-env/printenv-1-deploy to worker3dev.ocpdevmad01.tic1.intranet
+        12m         Normal   Pulled              pod/printenv-1-deploy              Container image "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:9ac5a8dceed67e3c3e1c018dc581bf5f03d77a20a2f1ca1bf00c32b5e75b19f6" already present on machine
+        12m         Normal   Created             pod/printenv-1-deploy              Created container deployment
+        12m         Normal   Started             pod/printenv-1-deploy              Started container deployment
+        13m         Normal   BuildStarted        build/printenv-1                   Build lgp-env/printenv-1 is now running
+        12m         Normal   BuildCompleted      build/printenv-1                   Build lgp-env/printenv-1 completed successfully
+        12m         Normal   SuccessfulCreate    replicationcontroller/printenv-1   Created pod: printenv-1-8px6q
+        12m         Normal   DeploymentCreated   deploymentconfig/printenv          Created new replication controller "printenv-1" for version 1
+
+3. Crear un filtro en Kibana para ver los logs de la aplicacion printenv:
+
+![alt Kibana][imagen9]
+
+[imagen9]: images/kibana.png
+
+4. Comprobar que seleccionando ese filtro unicamente aparecen los logs relacionados con el namespace por el que se esta filtrando.
+
+5. Hacer una busqueda por algun mensaje que salga en los logs del pod, por ejemplo "DEBUG_PORT=5858" o cualquier otro.
 
 ## Monitorizacion con Prometheus
 
