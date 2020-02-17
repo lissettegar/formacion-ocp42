@@ -39,7 +39,7 @@ Cualquier nodo que corra cualquier otro contenedor, pod o componente es un worke
         worker3dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
         worker4dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
 
-4. Crear un MachineConfigPool para el nodo de infraestructura:
+4. Si es el primer nodo de `infra` que se crea, crear un MachineConfigPool para el nodo de infraestructura:
 
         $ vi infra-machineconfigpool.yaml
 
