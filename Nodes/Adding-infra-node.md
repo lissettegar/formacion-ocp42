@@ -1,5 +1,6 @@
 # Añadir un nodo de tipo Infraestructura
 
+
 Puede crear un nodos de infrastructura para alojar solo componentes de infraestructura. Aplique etiquetas Kubernetes específicas a estas máquinas y luego actualice los componentes de infraestructura para que se ejecuten solo en esas máquinas. Estos nodos de infraestructura no se cuentan para el número total de suscripciones del cluster.
 
 ### Componentes de infraestructura de OpenShift Container Platform
@@ -19,83 +20,46 @@ Cualquier nodo que corra cualquier otro contenedor, pod o componente es un worke
 
 1. [Añadir un nodo worker](Node/Adding-worker-node)
 
-2. Etiquetar el nodo para que solo sea de `Infra`:
+1. Etiquetar los nodos de "infra":
 
-        $ oc label node mgmt1dev.ocpdevmad01.tic1.intranet node-role.kubernetes.io/infra=""
-        node/mgmt1dev.ocpdevmad01.tic1.intranet labeled
-        $ oc label node mgmt1dev.ocpdevmad01.tic1.intranet node-role.kubernetes.io/worker-
-        node/mgmt1dev.ocpdevmad01.tic1.intranet labeled
+        $ oc label node esdc1svdla042.emea.segur.test node-role.kubernetes.io/infra=""
 
-3. Comprobar que muestra la etiqueta correctamente:
+2. Comprobar que muestra el role correctamente:
 
         $ oc get nodes
-        NAME                                STATUS   ROLES    AGE     VERSION
-        master1dev.ocpdevmad01.tic1.intranet   Ready    master   4d17h   v1.14.6+6ac6aa4b0
-        master2dev.ocpdevmad01.tic1.intranet   Ready    master   4d17h   v1.14.6+6ac6aa4b0
-        master3dev.ocpdevmad01.tic1.intranet   Ready    master   4d17h   v1.14.6+6ac6aa4b0
-        mgmt1dev.ocpdevmad01.tic1.intranet     Ready    infra    4d17h   v1.14.6+6ac6aa4b0
-        worker1dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
-        worker2dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
-        worker3dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
-        worker4dev.ocpdevmad01.tic1.intranet   Ready    worker   4d17h   v1.14.6+6ac6aa4b0
+        $ oc get node --show-labels
 
-4. Si es el primer nodo de `infra` que se crea, crear un MachineConfigPool para el nodo de infraestructura:
+3. First, create an infra-mcp.yaml file with the following content:
 
-        $ vi infra-machineconfigpool.yaml
-
+        $ mkdir /opt/ocp4/infra
+        vi infra-mcp.yaml
         apiVersion: machineconfiguration.openshift.io/v1
         kind: MachineConfigPool
         metadata:
           name: infra
         spec:
-          configuration:
-            source:
-            - apiVersion: machineconfiguration.openshift.io/v1
-              kind: MachineConfig
-              name: 00-worker
-            - apiVersion: machineconfiguration.openshift.io/v1
-              kind: MachineConfig
-              name: 01-worker-container-runtime
-            - apiVersion: machineconfiguration.openshift.io/v1
-              kind: MachineConfig
-              name: 01-worker-kubelet
-            - apiVersion: machineconfiguration.openshift.io/v1
-              kind: MachineConfig
-              name: 99-worker-1ae64748-a115-11e9-8f14-005056899d54-registries
-            - apiVersion: machineconfiguration.openshift.io/v1
-              kind: MachineConfig
-              name: 99-worker-ssh
           machineConfigSelector:
-            matchLabels:
-              machineconfiguration.openshift.io/role: worker
-          maxUnavailable: null
+            matchExpressions:
+              - {key: machineconfiguration.openshift.io/role, operator: In, values: [worker,infra]}
           nodeSelector:
             matchLabels:
               node-role.kubernetes.io/infra: ""
-          paused: false
 
-        $ oc create -f infra-machineconfigpool.yaml
+        $ oc create -f infra-mcp.yaml
 
-        $ oc get machineconfig
-        NAME                                                        GENERATEDBYCONTROLLER                      IGNITIONVERSION   CREATED
-        00-master                                                   55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        00-worker                                                   55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        01-master-container-runtime                                 55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        01-master-kubelet                                           55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        01-worker-container-runtime                                 55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        01-worker-kubelet                                           55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        99-master-cfeb4b91-12c0-11ea-8599-0050568c1451-registries   55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        99-master-ssh                                                                                          2.2.0             2d23h
-        99-worker-cfec3d3e-12c0-11ea-8599-0050568c1451-registries   55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        99-worker-ssh                                                                                          2.2.0             2d23h
-        rendered-infra-286b825c7893dd1ed0567c2b30fac014            55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             4m30s
-        rendered-master-5cbef496fab483c10f891e9b3d9a7ca1            55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
-        rendered-worker-286b825c7893dd1ed0567c2b30fac014            55bb5fc17da0c3d76e4ee6a55732f0cba93e8520   2.2.0             2d23h
+4. To verify the creation check for a rendered-infra config by running the following to view all Machine Configs:
+
+        oc get mc
+        oc get mcp
+
+5. When it’s completed, the status for the infra MCP will show: True for UPDATED, False for UPDATING and False for DEGRADED.
+
+    Note: Since the nodes are rebooted in order to apply this new machine config, this takes several minutes to complete.
+
+6. Añadir taint a los nodos de infra para que no se ejecuten pods del cliente:
+
+        oc adm taint nodes -l node-role.kubernetes.io/infra infra=reserved:NoSchedule infra=reserved:NoExecute
 
 Referencias:
 
-  https://access.redhat.com/solutions/4246261
-
-  https://access.redhat.com/solutions/4287111
-
-  https://docs.openshift.com/container-platform/4.2/machine_management/creating-infrastructure-machinesets.html
+https://access.redhat.com/solutions/5034771
