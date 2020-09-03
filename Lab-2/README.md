@@ -1,6 +1,6 @@
 # Instrucciones Laboratorio 2
 
-## Desplegar aplicaciones desde linea de comando y uso de configmaps, variables de entorno, secrets
+## Desplegar aplicaciones desde linea de comando y uso de configmaps, variables de entorno, secrets y almacenamiento persistente estático
 
 Requisitos:
 
@@ -199,6 +199,74 @@ Requisitos:
     # MYSQL_APP_PASSWORD from secret printenv-secret, key app_password
     # MYSQL_APP_USER from secret printenv-secret, key app_user
 
-## 4. Limpiar el entorno:
+## 4. Uso de almacenamiento persistente estático
 
-    oc delete project $GUID-env
+  4.1. Exportar un FS por NFS. A continuación están los pasos para crear el servidor NFS y como exportar el FS. En nuestro caso ya teneis creado un FS con vuestro nombre en /home/nfs en el nodo bastión que contiene un fichero index.yaml y ese el FS que teneis que usar:
+
+    yum install -y nfs-utils rpcbind
+    systemctl enable rpcbind
+    systemctl enable nfs-lock
+    systemctl enable nfs-idmap
+    systemctl enable nfs-server
+
+    systemctl start rpcbind
+    systemctl start nfs-server
+    systemctl start nfs-lock
+    systemctl start nfs-idmap
+
+    mkdir -p /nfs-dir
+    chmod 777 -R /nfs-dir
+
+    echo '/nfs-dir *(rw,sync,no_wdelay,no_root_squash,insecure)' >> /etc/exports
+    exportfs -r
+
+  4.2. Crear un PV que haga uso del FS compartido por NFS(Sustituir el $GUID por vuestro nombre o GUID):
+
+    apiVersion: v1
+    kind: PersistentVolume
+    metadata:
+      name: $GUID-pv-volume
+    spec:
+      storageClassName: ""
+      capacity:
+        storage: 1Gi
+      accessModes:
+      - ReadWriteOnce
+      nfs:
+        path: <vuestro FS exportado por NFS>
+        server: 10.20.77.181
+      persistentVolumeReclaimPolicy: Retain
+
+  4.3. Comprobar que se ha creado el PV
+
+  4.4. Crear politica de seguridad para el serviceaccount default para que tenga privilegios anyuid
+
+      $ oc adm policy add-scc-to-user anyuid system:serviceaccount:<namespace>:default
+
+  4.5. Crear el PVC (Cambiar el GUID y poner vuestro nombre de proyecto):
+
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: $GUID-pvc
+        namespace: <vuestro projecto>
+      spec:
+        storageClassName: ""
+        accessModes:
+        - ReadWriteMany
+        resources:
+          requests:
+            storage: 1Gi  
+
+
+  4.6. Comprobar que se ha creado el PVC
+
+  4.7. ¿Cual es el estado del PVC? ¿Si hay algún problema como pedemos corregirlo?
+
+  4.8. Una vez corregido el problema y el pvc este en status Bound, crear un "pod" a partir de una imagen de nginx, que exponga el puerto 80 y que use el PVC que hemos creado y lo monte en /usr/share/nginx/html.
+
+  4.9. Comprobar que el pod de nginx arranca correctamente y que tiene montado el PVC
+
+  4.10. Crear un servicio para el pod y un route para acceder desde el exterior
+
+  4.11. Comprobar que se tiene acceso a la aplicación
